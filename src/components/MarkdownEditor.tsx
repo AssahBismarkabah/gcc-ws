@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -37,20 +37,29 @@ function getDocumentTitle(content: string): string {
 }
 
 export default function MarkdownEditor() {
-  const [documents, setDocuments] = useState<Document[]>(() => getDocuments());
-  const [currentDoc, setCurrentDoc] = useState<Document | null>(() => {
-    const docs = getDocuments();
-    return docs.length > 0 ? docs[0] : null;
-  });
-  const [markdown, setMarkdown] = useState(() => {
-    const docs = getDocuments();
-    return docs.length > 0 ? docs[0].content : DEFAULT_CONTENT;
-  });
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [currentDoc, setCurrentDoc] = useState<Document | null>(null);
+  const [markdown, setMarkdown] = useState(DEFAULT_CONTENT);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isInitialized = useRef(false);
+
+  // Load documents from localStorage on mount (valid use case for setState in effect)
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    const docs = getDocuments();
+    if (docs.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDocuments(docs);
+      setCurrentDoc(docs[0]);
+      setMarkdown(docs[0].content);
+    }
+  }, []);
 
   // Auto-save current document
   useEffect(() => {
-    if (!currentDoc) return;
+    if (!currentDoc || !isInitialized.current) return;
 
     const currentDocId = currentDoc.id;
     const timer = setTimeout(() => {
