@@ -281,9 +281,7 @@ export default function MarkdownEditor() {
   const exportAsHtml = () => {
     if (!currentDoc) return;
 
-    // Convert markdown to HTML using a temporary div
-    const tempDiv = document.createElement('div');
-    // We'll need to install and import remark-html for this, but for now we'll create a basic HTML wrapper
+    // Create HTML content with basic styling
     const htmlContent = `
 <!DOCTYPE html>
 <html>
