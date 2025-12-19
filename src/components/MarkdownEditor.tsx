@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import CodeEditor from "@uiw/react-textarea-code-editor";
 
 interface Document {
   id: string;
@@ -611,12 +612,18 @@ export default function MarkdownEditor() {
               </button>
             </div>
           </div>
-          <textarea
+          <CodeEditor
             value={markdown}
+            language="markdown"
             onChange={(e) => setMarkdown(e.target.value)}
-            className="flex-1 p-4 resize-none bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-mono text-sm leading-relaxed focus:outline-none"
+            className="flex-1"
             placeholder="Write your markdown here..."
-            spellCheck={false}
+            style={{
+              fontSize: 14,
+              backgroundColor: "var(--color-background)",
+              color: "var(--color-foreground)",
+              fontFamily: 'var(--font-mono), monospace',
+            }}
           />
         </div>
 
