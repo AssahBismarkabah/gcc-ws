@@ -67,6 +67,7 @@ export default function MarkdownEditor() {
     y: number;
     docId: string;
   } | null>(null);
+  const [exportMenu, setExportMenu] = useState<{x: number; y: number} | null>(null);
   const isInitialized = useRef(false);
 
   // Load documents and folders from localStorage on mount
@@ -85,6 +86,32 @@ export default function MarkdownEditor() {
     if (flds.length > 0) {
       setFolders(flds);
     }
+  }, []);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S to save/export
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        setExportMenu({ x: window.innerWidth - 200, y: 60 }); // Position near top-right
+      }
+      // Cmd/Ctrl + N for new document
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewDocument();
+      }
+      // Cmd/Ctrl + O for import
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        document.getElementById('file-import')?.click();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // Auto-save current document
@@ -221,10 +248,172 @@ export default function MarkdownEditor() {
     setContextMenu({ x: e.clientX, y: e.clientY, docId });
   };
 
+  const exportAsMarkdown = () => {
+    if (!currentDoc) return;
+
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportMenu(null);
+  };
+
+  const exportAsHtml = () => {
+    if (!currentDoc) return;
+
+    // Convert markdown to HTML using a temporary div
+    const tempDiv = document.createElement('div');
+    // We'll need to install and import remark-html for this, but for now we'll create a basic HTML wrapper
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${currentDoc.title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    /* Add basic styling to match the preview */
+    pre { background-color: #f4f4f4; padding: 10px; overflow-x: auto; }
+    code { background-color: #f4f4f4; padding: 2px 4px; }
+    blockquote { border-left: 3px solid #ddd; padding-left: 10px; margin-left: 0; }
+  </style>
+</head>
+<body>
+  <article class="prose prose-zinc">${markdown}</article>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportMenu(null);
+  };
+
+  const exportAsPdf = async () => {
+    if (!currentDoc) return;
+
+    // Dynamically import jsPDF to avoid bundling it unnecessarily
+    const jsPDF = (await import('jspdf')).default;
+    const html2canvas = (await import('html2canvas')).default;
+
+    // Create a hidden element to convert to PDF
+    const element = document.createElement('div');
+    element.innerHTML = `<div class="prose prose-zinc">${markdown}</div>`;
+    element.style.width = '210mm'; // A4 width
+    element.style.padding = '20mm';
+    element.style.background = 'white';
+    element.style.color = 'black';
+    document.body.appendChild(element);
+
+    const canvas = await html2canvas(element);
+    document.body.removeChild(element);
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210 - 20; // A4 width minus margins
+    const pageHeight = 295; // A4 height
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 10;
+
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+    setExportMenu(null);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const title = file.name.replace('.md', '').replace('.markdown', '');
+
+      const newDoc: Document = {
+        id: generateId(),
+        title: title || "Imported Document",
+        content: content || DEFAULT_CONTENT,
+        folderId: null,
+        updatedAt: Date.now(),
+      };
+
+      setDocuments((prev) => {
+        const updatedDocs = [newDoc, ...prev];
+        saveDocuments(updatedDocs);
+        return updatedDocs;
+      });
+      setCurrentDoc(newDoc);
+      setMarkdown(newDoc.content);
+    };
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be imported again if needed
+    e.target.value = '';
+  };
+
   const rootDocuments = documents.filter((d) => d.folderId === null);
 
   return (
     <div className="flex h-screen">
+      {/* Hidden file input for importing */}
+      <input
+        id="file-import"
+        type="file"
+        accept=".md,.markdown"
+        onChange={handleFileImport}
+        className="hidden"
+      />
+
+      {/* Export Menu */}
+      {exportMenu && (
+        <div
+          className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50 min-w-[180px]"
+          style={{ left: exportMenu.x, top: exportMenu.y }}
+        >
+          <div className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            Export as...
+          </div>
+          <button
+            onClick={exportAsMarkdown}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">📄</span> Markdown (.md)
+          </button>
+          <button
+            onClick={exportAsHtml}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">🌐</span> HTML (.html)
+          </button>
+          <button
+            onClick={exportAsPdf}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">📄</span> PDF (.pdf)
+          </button>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div
         className={`${
@@ -407,9 +596,20 @@ export default function MarkdownEditor() {
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Editor
             </h2>
-            {currentDoc && (
-              <span className="text-xs text-zinc-400">Auto-saved</span>
-            )}
+            <div className="flex items-center space-x-2">
+              {currentDoc && (
+                <span className="text-xs text-zinc-400">Auto-saved</span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExportMenu({ x: e.clientX, y: e.clientY });
+                }}
+                className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+              >
+                Export
+              </button>
+            </div>
           </div>
           <textarea
             value={markdown}
@@ -422,10 +622,19 @@ export default function MarkdownEditor() {
 
         {/* Preview Panel */}
         <div className="w-1/2 flex flex-col">
-          <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Preview
             </h2>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExportMenu({ x: e.clientX, y: e.clientY });
+              }}
+              className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+            >
+              Export
+            </button>
           </div>
           <div className="flex-1 overflow-auto p-6 bg-white dark:bg-zinc-950">
             <article className="prose prose-zinc dark:prose-invert max-w-none">
