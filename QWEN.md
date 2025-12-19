@@ -13,6 +13,11 @@ This is a **Next.js-based Markdown Editor** application that provides a real-tim
 - **Responsive Design**: Clean, modern UI with dark/light mode support
 - **Context Menus**: Right-click functionality to move documents between folders
 - **Auto-saving**: Documents automatically save as you type with a 500ms debounce
+- **Export Functionality**: Export documents as Markdown, HTML, or PDF
+- **Import Functionality**: Import existing markdown files
+- **Keyboard Shortcuts**: Ctrl+S (export), Ctrl+N (new document), Ctrl+O (import)
+- **Syntax Highlighting**: Markdown syntax highlighting in the editor
+- **Document Statistics**: Real-time word count, character count, and line count
 
 ### Technology Stack
 
@@ -21,6 +26,8 @@ This is a **Next.js-based Markdown Editor** application that provides a real-tim
 - **UI Library**: React 19.2.0
 - **Styling**: Tailwind CSS with @tailwindcss/typography plugin
 - **Markdown Processing**: react-markdown with remark-gfm for GitHub Flavored Markdown
+- **Code Editor**: @uiw/react-textarea-code-editor for syntax highlighting
+- **PDF Generation**: jsPDF and html2canvas for PDF export
 - **Fonts**: Google Fonts (Geist family)
 - **Icons**: Unicode emoji icons for UI elements
 
