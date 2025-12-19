@@ -69,6 +69,9 @@ export default function MarkdownEditor() {
     docId: string;
   } | null>(null);
   const [exportMenu, setExportMenu] = useState<{x: number; y: number} | null>(null);
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const [lineCount, setLineCount] = useState(0);
   const isInitialized = useRef(false);
 
   // Load documents and folders from localStorage on mount
@@ -114,6 +117,17 @@ export default function MarkdownEditor() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  // Calculate document statistics
+  useEffect(() => {
+    const words = markdown.trim() ? markdown.trim().split(/\s+/).filter(word => word.length > 0).length : 0;
+    const chars = markdown.length;
+    const lines = markdown ? markdown.split('\n').length : 0;
+
+    setWordCount(words);
+    setCharCount(chars);
+    setLineCount(lines);
+  }, [markdown]);
 
   // Auto-save current document
   useEffect(() => {
@@ -597,19 +611,28 @@ export default function MarkdownEditor() {
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Editor
             </h2>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
               {currentDoc && (
-                <span className="text-xs text-zinc-400">Auto-saved</span>
+                <div className="flex space-x-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>{wordCount} words</span>
+                  <span>{charCount} chars</span>
+                  <span>{lineCount} lines</span>
+                </div>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExportMenu({ x: e.clientX, y: e.clientY });
-                }}
-                className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
-              >
-                Export
-              </button>
+              <div className="flex items-center space-x-2">
+                {currentDoc && (
+                  <span className="text-xs text-zinc-400">Auto-saved</span>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExportMenu({ x: e.clientX, y: e.clientY });
+                  }}
+                  className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                >
+                  Export
+                </button>
+              </div>
             </div>
           </div>
           <CodeEditor
@@ -633,15 +656,24 @@ export default function MarkdownEditor() {
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Preview
             </h2>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExportMenu({ x: e.clientX, y: e.clientY });
-              }}
-              className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
-            >
-              Export
-            </button>
+            <div className="flex items-center space-x-4">
+              {currentDoc && (
+                <div className="flex space-x-4 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>{wordCount} words</span>
+                  <span>{charCount} chars</span>
+                  <span>{lineCount} lines</span>
+                </div>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExportMenu({ x: e.clientX, y: e.clientY });
+                }}
+                className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
+              >
+                Export
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-auto p-6 bg-white dark:bg-zinc-950">
             <article className="prose prose-zinc dark:prose-invert max-w-none">
