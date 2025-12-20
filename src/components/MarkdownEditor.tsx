@@ -64,7 +64,7 @@ _You **can** combine them_
 
 ## Images
 
-![This is an alt text.](/image/sample.webp "This is a sample image.")
+![This is an alt text.](/src/md.png "This is a sample image.")
 
 ## Links
 
@@ -143,6 +143,7 @@ export default function MarkdownEditor() {
     docId: string;
   } | null>(null);
   const [exportMenu, setExportMenu] = useState<{x: number; y: number} | null>(null);
+  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
 
   // Close export menu on click outside
   useEffect(() => {
@@ -152,6 +153,35 @@ export default function MarkdownEditor() {
       return () => document.removeEventListener("click", handleClick);
     }
   }, [exportMenu]);
+
+  // Initialize theme based on system preference or localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setDarkMode(savedTheme === 'dark');
+    } else {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setDarkMode(systemPrefersDark);
+    }
+  }, []);
+
+  // Update theme in localStorage and HTML class when it changes
+  useEffect(() => {
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+    if (typeof window !== 'undefined') {
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+    }
+  }, [darkMode]);
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+  };
 
   // Position export menu to stay within viewport
   useEffect(() => {
@@ -734,6 +764,21 @@ export default function MarkdownEditor() {
                 {currentDoc && (
                   <span className="text-xs text-zinc-400">Auto-saved</span>
                 )}
+                <button
+                  onClick={toggleTheme}
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                  title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                  {darkMode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+                      <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                  )}
+                </button>
                 <a
                   href="https://github.com/DCT-Berinyuy/gcc-ws"
                   target="_blank"
@@ -759,22 +804,33 @@ export default function MarkdownEditor() {
               </div>
             </div>
           </div>
-          <div className="flex-1 overflow-auto p-4 bg-white dark:bg-zinc-950">
-            <CodeEditor
-              value={markdown}
-              language="markdown"
-              onChange={(e) => setMarkdown(e.target.value)}
-              className="w-full"
-              placeholder="Write your markdown here..."
-              style={{
-                fontSize: 14,
-                backgroundColor: "var(--color-background)",
-                color: "var(--color-foreground)",
-                fontFamily: 'var(--font-mono), monospace',
-                minHeight: 'calc(100vh - 200px)',
-                height: 'auto',
-              }}
-            />
+          <div className="flex-1 overflow-auto bg-white dark:bg-zinc-950 relative">
+            {/* Line numbers background */}
+            <div className="absolute top-0 left-0 bottom-0 w-14 bg-zinc-100 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 z-10 pointer-events-none">
+              <div className="py-4 text-right text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                {markdown.split('\n').map((_, i) => (
+                  <div key={i} className="pr-2">{i + 1}</div>
+                ))}
+              </div>
+            </div>
+            {/* Editor area with padding to accommodate line numbers */}
+            <div className="h-full pl-14">
+              <CodeEditor
+                value={markdown}
+                language="markdown"
+                onChange={(e) => setMarkdown(e.target.value)}
+                className="w-full h-full"
+                placeholder="Write your markdown here..."
+                style={{
+                  fontSize: 14,
+                  backgroundColor: "var(--color-background)",
+                  color: "var(--color-foreground)",
+                  fontFamily: 'var(--font-mono), monospace',
+                  minHeight: 'calc(100vh - 200px)',
+                  height: 'auto',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -792,18 +848,33 @@ export default function MarkdownEditor() {
                   <span>{lineCount} lines</span>
                 </div>
               )}
-              <a
-                href="https://github.com/DCT-Berinyuy/gcc-ws"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                title="View on GitHub"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-400">
-                  <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/>
-                  <path d="M9 18c-4.51 2-5-2-7-2"/>
-                </svg>
-              </a>
+                <button
+                  onClick={toggleTheme}
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                  title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                >
+                  {darkMode ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+                      <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                  )}
+                </button>
+                <a
+                  href="https://github.com/DCT-Berinyuy/gcc-ws"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                  title="View on GitHub"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600 dark:text-zinc-400">
+                    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/>
+                    <path d="M9 18c-4.51 2-5-2-7-2"/>
+                  </svg>
+                </a>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
