@@ -2,6 +2,10 @@
 
 A feature-rich, live-preview markdown editor with export, import, syntax highlighting, and document statistics.
 
+## Preview
+
+![Markdown Editor Preview](/src/Screenshot_2025-12-20_04-10-42.png)
+
 ## Features
 
 - **Real-time Preview**: Live markdown rendering as you type
