@@ -17,6 +17,8 @@ A feature-rich, live-preview markdown editor with export, import, syntax highlig
 - **Syntax Highlighting**: Markdown syntax highlighting in the editor
 - **Document Statistics**: Real-time word count, character count, and line count
 - **GitHub Integration**: Direct link to the project repository from the editor
+- **Theme Toggle**: Switch between dark and light mode
+- **Line Numbers**: Display line numbers in the editor (visual only)
 
 ## Getting Started
 
