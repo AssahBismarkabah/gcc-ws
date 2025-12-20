@@ -16,6 +16,7 @@ A feature-rich, live-preview markdown editor with export, import, syntax highlig
 - **Keyboard Shortcuts**: Ctrl+S (export), Ctrl+N (new document), Ctrl+O (import)
 - **Syntax Highlighting**: Markdown syntax highlighting in the editor
 - **Document Statistics**: Real-time word count, character count, and line count
+- **GitHub Integration**: Direct link to the project repository from the editor
 
 ## Getting Started
 

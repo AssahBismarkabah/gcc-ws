@@ -18,6 +18,7 @@ This is a **Next.js-based Markdown Editor** application that provides a real-tim
 - **Keyboard Shortcuts**: Ctrl+S (export), Ctrl+N (new document), Ctrl+O (import)
 - **Syntax Highlighting**: Markdown syntax highlighting in the editor
 - **Document Statistics**: Real-time word count, character count, and line count
+- **GitHub Integration**: Direct link to the project repository from the editor
 
 ### Technology Stack
 
