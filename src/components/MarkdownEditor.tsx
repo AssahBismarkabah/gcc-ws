@@ -633,19 +633,23 @@ export default function MarkdownEditor() {
               </div>
             </div>
           </div>
-          <CodeEditor
-            value={markdown}
-            language="markdown"
-            onChange={(e) => setMarkdown(e.target.value)}
-            className="flex-1"
-            placeholder="Write your markdown here..."
-            style={{
-              fontSize: 14,
-              backgroundColor: "var(--color-background)",
-              color: "var(--color-foreground)",
-              fontFamily: 'var(--font-mono), monospace',
-            }}
-          />
+          <div className="flex-1 overflow-auto p-4 bg-white dark:bg-zinc-950">
+            <CodeEditor
+              value={markdown}
+              language="markdown"
+              onChange={(e) => setMarkdown(e.target.value)}
+              className="w-full"
+              placeholder="Write your markdown here..."
+              style={{
+                fontSize: 14,
+                backgroundColor: "var(--color-background)",
+                color: "var(--color-foreground)",
+                fontFamily: 'var(--font-mono), monospace',
+                minHeight: 'calc(100vh - 200px)',
+                height: 'auto',
+              }}
+            />
+          </div>
         </div>
 
         {/* Preview Panel */}
