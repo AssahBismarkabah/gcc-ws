@@ -69,6 +69,28 @@ export default function MarkdownEditor() {
     docId: string;
   } | null>(null);
   const [exportMenu, setExportMenu] = useState<{x: number; y: number} | null>(null);
+
+  // Close export menu on click outside
+  useEffect(() => {
+    const handleClick = () => setExportMenu(null);
+    if (exportMenu) {
+      document.addEventListener("click", handleClick);
+      return () => document.removeEventListener("click", handleClick);
+    }
+  }, [exportMenu]);
+
+  // Position export menu to stay within viewport
+  useEffect(() => {
+    if (!exportMenu) return;
+
+    const adjustPosition = () => {
+      // The positioning will be handled by the ref when the element is rendered
+    };
+
+    adjustPosition();
+    window.addEventListener('resize', adjustPosition);
+    return () => window.removeEventListener('resize', adjustPosition);
+  }, [exportMenu]);
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [lineCount, setLineCount] = useState(0);
@@ -401,7 +423,12 @@ export default function MarkdownEditor() {
       {exportMenu && (
         <div
           className="fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50 min-w-[180px]"
-          style={{ left: exportMenu.x, top: exportMenu.y }}
+          style={{
+            left: 0,
+            top: 0,
+            transform: `translate(${Math.min(exportMenu.x, typeof window !== 'undefined' ? window.innerWidth - 200 : exportMenu.x)}px, ${Math.min(exportMenu.y, typeof window !== 'undefined' ? window.innerHeight - 150 : exportMenu.y)}px)`,
+          }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
             Export as...
@@ -636,7 +663,8 @@ export default function MarkdownEditor() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setExportMenu({ x: e.clientX, y: e.clientY });
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setExportMenu({ x: rect.left, y: rect.bottom + 5 });
                   }}
                   className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 >
@@ -693,7 +721,8 @@ export default function MarkdownEditor() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setExportMenu({ x: e.clientX, y: e.clientY });
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setExportMenu({ x: rect.left, y: rect.bottom + 5 });
                 }}
                 className="text-xs px-2 py-1 bg-zinc-200 dark:bg-zinc-700 rounded hover:bg-zinc-300 dark:hover:bg-zinc-600"
               >
