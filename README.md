@@ -4,7 +4,7 @@ A feature-rich, live-preview markdown editor with export, import, syntax highlig
 
 ## Preview
 
-![Markdown Editor Preview](/src/Screenshot_2025-12-20_04-10-42.png)
+![Markdown Editor Preview](/Screenshot_2025-12-20_04-10-42.png)
 
 ## Features
 

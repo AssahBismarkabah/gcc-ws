@@ -115,15 +115,11 @@ The application uses:
 
 ## Potential Enhancements
 
-- Export functionality (PDF, HTML, etc.)
-- Import existing markdown files
 - Collaboration features
 - Cloud sync options
-- Syntax highlighting in the editor
 - Print-friendly styles
 
 ## Known Limitations
 
 - Data is stored only in browser's localStorage (not persistent across devices)
-- No file upload/import functionality
 - Simple text editor without advanced formatting shortcuts
