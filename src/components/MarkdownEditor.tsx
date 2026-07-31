@@ -3,6 +3,14 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import dynamic from 'next/dynamic';
+import Toolbar from './Toolbar';
+
+// Dynamically import CodeEditor to avoid SSR issues
+const CodeEditor = dynamic(
+  () => import('@uiw/react-textarea-code-editor'),
+  { ssr: false }
+);
 
 interface Document {
   id: string;
@@ -18,7 +26,75 @@ interface Folder {
   isOpen: boolean;
 }
 
-const DEFAULT_CONTENT = `# Welcome to this fun markdown editor
+const DEFAULT_CONTENT = `# Markdown syntax guide
+
+## Headers
+
+# This is a Heading h1
+## This is a Heading h2
+###### This is a Heading h6
+
+## Emphasis
+
+*This text will be italic*
+_This will also be italic_
+
+**This text will be bold**
+__This will also be bold__
+
+_You **can** combine them_
+
+## Lists
+
+### Unordered
+
+* Item 1
+* Item 2
+* Item 2a
+* Item 2b
+    * Item 3a
+    * Item 3b
+
+### Ordered
+
+1. Item 1
+2. Item 2
+3. Item 3
+    1. Item 3a
+    2. Item 3b
+
+## Images
+
+![This is an alt text.](/src/md.png "This is a sample image.")
+
+## Links
+
+You may be using [Markdown Live Preview](https://markdownlivepreview.com/).
+
+## Blockquotes
+
+> Markdown is a lightweight markup language with plain-text-formatting syntax, created in 2004 by John Gruber with Aaron Swartz.
+>
+>> Markdown is often used to format readme files, for writing messages in online discussion forums, and to create rich text using a plain text editor.
+
+## Tables
+
+| Left columns  | Right columns |
+| ------------- |:-------------:|
+| left foo      | right foo     |
+| left bar      | right bar     |
+| left baz      | right baz     |
+
+## Blocks of code
+
+\`\`\`
+let message = 'Hello world';
+alert(message);
+\`\`\`
+
+## Inline code
+
+This web site is using \`markedjs/marked\`.
 `;
 
 const STORAGE_KEY = "markdown-editor-documents";
@@ -67,6 +143,85 @@ export default function MarkdownEditor() {
     y: number;
     docId: string;
   } | null>(null);
+  const [exportMenu, setExportMenu] = useState<{x: number; y: number} | null>(null);
+  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
+
+  // Close export menu on click outside
+  useEffect(() => {
+    const handleClick = () => setExportMenu(null);
+    if (exportMenu) {
+      document.addEventListener("click", handleClick);
+      return () => document.removeEventListener("click", handleClick);
+    }
+  }, [exportMenu]);
+
+  // Initialize theme based on system preference or localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setDarkMode(savedTheme === 'dark');
+    } else {
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setDarkMode(systemPrefersDark);
+    }
+  }, []);
+
+  // Update theme in localStorage and HTML class when it changes
+  useEffect(() => {
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+    if (typeof window !== 'undefined') {
+      if (darkMode) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+    }
+  }, [darkMode]);
+
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+  };
+
+  // Position export menu to stay within viewport
+  useEffect(() => {
+    if (!exportMenu) return;
+
+    const adjustPosition = () => {
+      const menuElement = document.querySelector('.export-menu');
+      if (menuElement) {
+        const rect = menuElement.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // Check if menu goes beyond the right edge
+        if (rect.right > windowWidth) {
+          setExportMenu(prev => prev ? {...prev, x: windowWidth - rect.width - 10} : null);
+        }
+
+        // Check if menu goes beyond the bottom edge
+        if (rect.bottom > windowHeight) {
+          setExportMenu(prev => prev ? {...prev, y: windowHeight - rect.height - 10} : null);
+        }
+      }
+    };
+
+    // Call adjustPosition after the menu is rendered
+    const timeoutId = setTimeout(adjustPosition, 0);
+
+    // Add resize listener
+    window.addEventListener('resize', adjustPosition);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', adjustPosition);
+    };
+  }, [exportMenu]);
+
+  const [wordCount, setWordCount] = useState(0);
+  const [charCount, setCharCount] = useState(0);
+  const [lineCount, setLineCount] = useState(0);
   const isInitialized = useRef(false);
 
   // Load documents and folders from localStorage on mount
@@ -77,15 +232,63 @@ export default function MarkdownEditor() {
     const docs = getDocuments();
     const flds = getFolders();
     if (docs.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDocuments(docs);
       setCurrentDoc(docs[0]);
       setMarkdown(docs[0].content);
+    } else {
+      // If no documents exist, create a default document with the guide
+      const defaultDoc: Document = {
+        id: generateId(),
+        title: "Getting Started with Markdown",
+        content: DEFAULT_CONTENT,
+        folderId: null,
+        updatedAt: Date.now(),
+      };
+      setDocuments([defaultDoc]);
+      setCurrentDoc(defaultDoc);
+      setMarkdown(DEFAULT_CONTENT);
     }
     if (flds.length > 0) {
       setFolders(flds);
     }
   }, []);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S to save/export
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        setExportMenu({ x: window.innerWidth - 200, y: 60 }); // Position near top-right
+      }
+      // Cmd/Ctrl + N for new document
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        createNewDocument();
+      }
+      // Cmd/Ctrl + O for import
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        document.getElementById('file-import')?.click();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Calculate document statistics
+  useEffect(() => {
+    const words = markdown.trim() ? markdown.trim().split(/\s+/).filter(word => word.length > 0).length : 0;
+    const chars = markdown.length;
+    const lines = markdown ? markdown.split('\n').length : 0;
+
+    setWordCount(words);
+    setCharCount(chars);
+    setLineCount(lines);
+  }, [markdown]);
 
   // Auto-save current document
   useEffect(() => {
@@ -221,10 +424,175 @@ export default function MarkdownEditor() {
     setContextMenu({ x: e.clientX, y: e.clientY, docId });
   };
 
+  const exportAsMarkdown = () => {
+    if (!currentDoc) return;
+
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportMenu(null);
+  };
+
+  const exportAsHtml = () => {
+    if (!currentDoc) return;
+
+    // Create HTML content with basic styling
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${currentDoc.title}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    /* Add basic styling to match the preview */
+    pre { background-color: #f4f4f4; padding: 10px; overflow-x: auto; }
+    code { background-color: #f4f4f4; padding: 2px 4px; }
+    blockquote { border-left: 3px solid #ddd; padding-left: 10px; margin-left: 0; }
+  </style>
+</head>
+<body>
+  <article class="prose prose-zinc">${markdown}</article>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setExportMenu(null);
+  };
+
+  const exportAsPdf = async () => {
+    if (!currentDoc) return;
+
+    // Dynamically import jsPDF to avoid bundling it unnecessarily
+    const jsPDF = (await import('jspdf')).default;
+    const html2canvas = (await import('html2canvas')).default;
+
+    // Create a hidden element to convert to PDF
+    const element = document.createElement('div');
+    element.innerHTML = `<div class="prose prose-zinc">${markdown}</div>`;
+    element.style.width = '210mm'; // A4 width
+    element.style.padding = '20mm';
+    element.style.background = 'white';
+    element.style.color = 'black';
+    document.body.appendChild(element);
+
+    const canvas = await html2canvas(element);
+    document.body.removeChild(element);
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210 - 20; // A4 width minus margins
+    const pageHeight = 295; // A4 height
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 10;
+
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`${currentDoc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+    setExportMenu(null);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const title = file.name.replace('.md', '').replace('.markdown', '');
+
+      const newDoc: Document = {
+        id: generateId(),
+        title: title || "Imported Document",
+        content: content || DEFAULT_CONTENT,
+        folderId: null,
+        updatedAt: Date.now(),
+      };
+
+      setDocuments((prev) => {
+        const updatedDocs = [newDoc, ...prev];
+        saveDocuments(updatedDocs);
+        return updatedDocs;
+      });
+      setCurrentDoc(newDoc);
+      setMarkdown(newDoc.content);
+    };
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be imported again if needed
+    e.target.value = '';
+  };
+
   const rootDocuments = documents.filter((d) => d.folderId === null);
 
   return (
     <div className="flex h-screen">
+      {/* Hidden file input for importing */}
+      <input
+        id="file-import"
+        type="file"
+        accept=".md,.markdown"
+        onChange={handleFileImport}
+        className="hidden"
+      />
+
+      {/* Export Menu */}
+      {exportMenu && (
+        <div
+          className="export-menu fixed bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50 min-w-[180px]"
+          style={{
+            left: 0,
+            top: 0,
+            transform: `translate(${Math.min(exportMenu.x, typeof window !== 'undefined' ? window.innerWidth - 200 : exportMenu.x)}px, ${Math.min(exportMenu.y, typeof window !== 'undefined' ? window.innerHeight - 150 : exportMenu.y)}px)`,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            Export as...
+          </div>
+          <button
+            onClick={exportAsMarkdown}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">📄</span> Markdown (.md)
+          </button>
+          <button
+            onClick={exportAsHtml}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">🌐</span> HTML (.html)
+          </button>
+          <button
+            onClick={exportAsPdf}
+            className="w-full px-3 py-1.5 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 flex items-center"
+          >
+            <span className="mr-2">📄</span> PDF (.pdf)
+          </button>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div
         className={`${
@@ -407,25 +775,69 @@ export default function MarkdownEditor() {
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Editor
             </h2>
-            {currentDoc && (
-              <span className="text-xs text-zinc-400">Auto-saved</span>
-            )}
+            <Toolbar
+              currentDoc={currentDoc}
+              wordCount={wordCount}
+              charCount={charCount}
+              lineCount={lineCount}
+              darkMode={darkMode}
+              toggleTheme={toggleTheme}
+              onExportClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setExportMenu({ x: rect.left, y: rect.bottom + 5 });
+              }}
+            />
           </div>
-          <textarea
-            value={markdown}
-            onChange={(e) => setMarkdown(e.target.value)}
-            className="flex-1 p-4 resize-none bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-mono text-sm leading-relaxed focus:outline-none"
-            placeholder="Write your markdown here..."
-            spellCheck={false}
-          />
+          <div className="flex-1 overflow-auto bg-white dark:bg-zinc-950 relative">
+            {/* Line numbers background */}
+            <div className="absolute top-0 left-0 bottom-0 w-14 bg-zinc-100 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 z-10 pointer-events-none">
+              <div className="py-4 text-right text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+                {markdown.split('\n').map((_, i) => (
+                  <div key={i} className="pr-2">{i + 1}</div>
+                ))}
+              </div>
+            </div>
+            {/* Editor area with padding to accommodate line numbers */}
+            <div className="h-full pl-14">
+              <CodeEditor
+                value={markdown}
+                language="markdown"
+                onChange={(e) => setMarkdown(e.target.value)}
+                className="w-full h-full"
+                placeholder="Write your markdown here..."
+                style={{
+                  fontSize: 14,
+                  backgroundColor: "var(--color-background)",
+                  color: "var(--color-foreground)",
+                  fontFamily: 'var(--font-mono), monospace',
+                  minHeight: 'calc(100vh - 200px)',
+                  height: 'auto',
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Preview Panel */}
         <div className="w-1/2 flex flex-col">
-          <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="bg-zinc-100 dark:bg-zinc-900 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
               Preview
             </h2>
+            <Toolbar
+              currentDoc={currentDoc}
+              wordCount={wordCount}
+              charCount={charCount}
+              lineCount={lineCount}
+              darkMode={darkMode}
+              toggleTheme={toggleTheme}
+              onExportClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setExportMenu({ x: rect.left, y: rect.bottom + 5 });
+              }}
+            />
           </div>
           <div className="flex-1 overflow-auto p-6 bg-white dark:bg-zinc-950">
             <article className="prose prose-zinc dark:prose-invert max-w-none">
